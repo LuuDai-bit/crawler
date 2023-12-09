@@ -1,7 +1,7 @@
 require 'httparty'
 require 'nokogiri'
 
-NUM_THREAD = 5
+NUM_THREAD = 6
 BATCH_SIZE = 100
 LAST_CHAPTER = 546
 
@@ -13,12 +13,12 @@ def crawl_url(url, page_counter, dir)
   })
   document = Nokogiri::HTML(response.body)
 
-  return if page_counter == LAST_CHAPTER
+  return if page_counter > LAST_CHAPTER
 
   html_content = document.css("div#inner_chap_content_1")
   quotes = html_content.css("p")
   title = document.css("h2.heading-font.mt-2")
-  chapter = title.inner_html
+  chapter = title.to_s
   chapter += quotes.map(&:to_s).join("\n")
 
   File.open(dir, "ab") do |f|
@@ -39,12 +39,21 @@ threads = (1..NUM_THREAD).map do |i|
     page_counter = (i-1) * BATCH_SIZE + 1
     url = "https://truyenyy.pro/truyen/theo-dai-thu-bat-dau-tien-hoa/chuong-#{page_counter}.html"
     dir = "results/tu_dai_thu_bat_dau_tien_hoa_#{i}.html"
+
+    File.open(dir, "wb") do |f|
+      f.write("<html>\n<body>")
+    end
+
     while true do
       page_counter = page_counter.nil? ? i : page_counter
       puts "#{page_counter}"
 
       url, page_counter = crawl_url(url, page_counter, dir)
       break if url.nil? || page_counter > (i * BATCH_SIZE)
+    end
+
+    File.open(dir, "ab") do |f|
+      f.write("</body>\n</html>")
     end
   end
 end
